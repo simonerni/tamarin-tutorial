@@ -14,15 +14,40 @@ builtins: symmetric-encryption
 /* -------------- */
 
 rule ShareKey:  // share a key pair between two parties.
-/*FILL IN HERE*/
+    [ Fr(~K_AB) ]
+    -->
+    [ A_Init($A, $B, ~K_AB), B_Init($B,$A,~K_AB) ]
 
 
 /* -------------- */
 /* Protocol rules */
 /* -------------- */
 
+rule A_Send:  // share a key pair between two parties.
+    [ A_Init($A,$B,K_AB), Fr(~m_A) ]
+    -->
+    [ A_Sent($A,$B,K_AB, ~m_A),
+      Out(senc(~m_A, K_AB))
+    ]
 
-/*FILL IN HERE*/
+
+rule B_Revc1:
+    let msg = senc(m_A, K_AB) 
+    m_A = sdec(msg,K_AB) in
+    [ B_Init($B,$A,K_AB), Fr(~m_B), In(msg) ]
+    --[FinishedB($B,$A, m_A, ~m_B), Secret(~m_B)]->
+    [ 
+    Out(senc(~m_B, K_AB))
+    ]
+
+
+rule A_Revc1:
+    let msg = senc(~m_B, K_AB)
+    m_B = sdec(msg,K_AB) in
+    [ A_Sent($A,$B,K_AB, ~m_A), In(msg) ]
+    --[FinishedA($A,$B, ~m_A, m_B), Secret(~m_A)]->
+    [ 
+    ]
 
 
 
@@ -38,8 +63,10 @@ exists-trace "Ex #i #j A B ma mb.
 FinishedA(A, B, ma, mb)@i & FinishedB(B,A,ma,mb)@j& not (A=B)"
  
 
+lemma secrecy:
+  "All x #i.
+    Secret(x) @i ==> not (Ex #j. K(x)@j)"
 
-/*FILL IN HERE*/
 
 
 end

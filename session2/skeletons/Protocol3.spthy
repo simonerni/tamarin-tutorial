@@ -1,0 +1,126 @@
+theory Protocol3
+
+begin
+
+builtins: symmetric-encryption, asymmetric-encryption, signing
+
+/* ---------------- */
+/* Public Key Setup */
+/* ---------------- */
+
+rule Register_pk:
+  [ Fr(~ltkX) ]
+  -->
+  [ !Ltk($X, ~ltkX)
+  , !Pk($X, pk(~ltkX))
+  , Out(pk(~ltkX))
+  ] 
+
+rule Reveal:
+  [!Ltk($X, ~ltkX)]
+  --[Reveal($X)]->
+  [Out(~ltkX)]
+
+/* -------------- */
+/* Protocol rules */
+/* -------------- */
+
+rule A_Init:
+    [!Ltk($A, ~ltkA), !Pk($B, pkB)]
+    -->
+    [A_Initialized($A, $B, ~ltkA, pk(~ltkA), pkB)]
+
+rule B_Init:
+    [!Ltk($B, ~ltkB), !Pk($A, pkA)]
+    -->
+    [B_Initialized($B, $A, ~ltkB, pk(~ltkB), pkA)]
+
+
+rule A_Send:
+    [
+      A_Initialized($A, $B, ~ltkA, pk(~ltkA),  pkB),
+      Fr(~K_AB), 
+      Fr(~m_A)
+    ]
+    --[]->
+    [
+      Out(<$A, 
+          aenc(~K_AB, pkB),
+            senc( (
+              < ~m_A, sign(~m_A, ~ltkA)>
+            ), ~K_AB)
+            >),
+      A_Sent($A, $B, ~ltkA, pk(~ltkA), pkB, ~K_AB, ~m_A)
+    ]
+
+
+rule B_Recv:
+    [
+      B_Initialized($B, $A, ~ltkB, pk(~ltkB), pkA),
+      In(<
+        $A, 
+        aenc(K_AB,  pk(~ltkB)), 
+        senc(<m_A, signA>, K_AB)
+        >),
+      Fr(~m_B)
+    ]
+    --[
+      IsEq(verify(signA, m_A, pkA),true),
+      FinishedB($B, $A, m_A, ~m_B), 
+      SecretB($A, $B, ~m_B)
+    ]->
+    [
+      Out(senc(~m_B, K_AB))
+    ]
+
+rule A_Recv:
+    [
+      A_Sent($A, $B, ~ltkA, pk(~ltkA), pkB, ~K_AB, ~m_A),
+      In(senc(m_B, ~K_AB))
+    ]
+    --[
+      FinishedA($A, $B, ~m_A, m_B), 
+      SecretA($A, $B, ~m_A)
+    ]->
+    []
+
+
+/* ---------- */
+/* Properties */
+/* ---------- */
+
+/* Executability check: */
+lemma executable:
+exists-trace "Ex #i #j A B ma mb.
+FinishedA(A, B, ma, mb)@i & FinishedB(B,A,ma,mb)@j& not (A=B)"
+ 
+
+
+
+/* Security properties: */
+
+lemma secrecyA:
+  "All A B x #i.
+    (SecretA(A, B, x) @i & not (Ex #j. Reveal(A)@j) & not (Ex #j. Reveal(B)@j)) ==> not (Ex #j. K(x)@j) "
+
+lemma secrecyB:
+  "All A B x #i.
+    (SecretB(A, B, x) @i & not (Ex #j. Reveal(A)@j) & not (Ex #j. Reveal(B)@j)) ==> not (Ex #j. K(x)@j) "
+
+
+
+lemma secrecySofiaA:
+    "All #i m A B.
+     SecretA(A, B, m) @ i ==> ( (not (Ex #j. K(m) @ j)) | (Ex #j. Reveal(A)@j) | (Ex #j. Reveal(B)@j))"
+    
+lemma secrecySofiaB:
+    "All #i m B A. 
+    SecretB(B, A, m) @ i ==>  ( (not (Ex #j. K(m) @ j)) | (Ex #j. Reveal(A)@j) | (Ex #j. Reveal(B)@j))"
+    
+
+restriction IsEq:
+"
+    All A B #i. IsEq(A,B)@ i ==> A = B
+"
+   
+end

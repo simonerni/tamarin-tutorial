@@ -1,0 +1,53 @@
+theory test
+begin
+
+builtins: symmetric-encryption, asymmetric-encryption
+
+/* ---------------- */
+/* Public Key Setup */
+/* ---------------- */
+
+
+/* -------------- */
+/* Protocol rules */
+/* -------------- */
+
+
+rule A_Init:
+    [Fr(~x)]
+    -->
+    [A_Initialized($A, ~x)]
+
+rule A_is_secure:
+    [A_Initialized($A, ~x)]
+    --[Secret($A, ~x), FinishedA($A, ~x)]->
+    [A_after_secure($A, ~x)]
+
+rule A_reveal:
+    [A_after_secure($A, ~x)]
+    --[Reveal($A)]->
+    [Out(~x)]
+
+/* ---------- */
+/* Properties */
+/* ---------- */
+
+/* Executability check: */
+lemma executable:
+exists-trace "Ex #i A x.
+FinishedA(A, x)@i"
+ 
+
+
+
+lemma secrecy:
+  "All A x #i.
+    (Secret(A, x) @i & not (Ex #j. Reveal(A)@j & i < j)) ==> not (Ex #j. K(x)@j) "
+
+
+/* Security properties: */
+
+/*FILL IN HERE*/
+
+
+end

@@ -7,19 +7,41 @@ builtins: symmetric-encryption, asymmetric-encryption
 /* Public Key Setup */
 /* ---------------- */
 
-/*FILL IN HERE*/
-
-
+rule Register_pk:
+  [ Fr(~ltkX) ]
+  -->
+  [ !Ltk($X, ~ltkX)
+  , !Pk($X, pk(~ltkX))
+  , Out(pk(~ltkX))
+  ] 
 
 /* -------------- */
 /* Protocol rules */
 /* -------------- */
 
-/*FILL IN HERE*/
+
+rule B_Init:
+    [!Ltk($B, ~ltkB)]
+    -->
+    [B_Initialized($B, ~ltkB)]
 
 
+rule A_Init:
+    [Fr(~K_AB), Fr(~m_A), !Pk($B, pkB)]
+    --[SecretA(~m_A)]->
+    [Out(<$A, aenc(~K_AB, pkB), senc(~m_A, ~K_AB)>), A_Sent($A, $B, ~K_AB, ~m_A)]
 
 
+rule B_Recv:
+
+    [ B_Initialized($B, ~ltkB), In(<$A, aenc(K_AB, pk(~ltkB)), senc(m_A, K_AB)>), Fr(~m_B)]
+    --[FinishedB($B, $A, m_A, ~m_B), SecretB(m_A)]->
+    [Out(senc(~m_B, K_AB))]
+
+rule A_Recv:
+    [A_Sent($A, $B, ~K_AB, ~m_A), In(senc(m_B, ~K_AB))]
+    --[FinishedA($A, $B, ~m_A, m_B)]->
+    []
 
 
 /* ---------- */
@@ -28,8 +50,20 @@ builtins: symmetric-encryption, asymmetric-encryption
 
 /* Executability check: */
 lemma executable:
-exists-trace   /*FILL IN HERE*/
+exists-trace "Ex #i #j A B ma mb.
+FinishedA(A, B, ma, mb)@i & FinishedB(B,A,ma,mb)@j& not (A=B)"
+ 
 
+
+
+lemma secrecy_A:
+  "All x #i.
+    SecretA(x) @i ==> not (Ex #j. K(x)@j)"
+
+
+lemma secrecy_B:
+"All x #i.
+  SecretB(x) @i ==> not (Ex #j. K(x)@j)"
 
 /* Security properties: */
 
